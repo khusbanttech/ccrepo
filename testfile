@@ -1,0 +1,134 @@
+// <copyright file="DBAApprovalTests.cs" company="Total Quality Logistics"> 
+// Copyright (c) Total Quality Logistics. All rights reserved. 
+// </copyright> 
+using AutoFixture;
+using ChangeControlAPI.Constants;
+using ChangeControlAPI.Models;
+using ChangeControlAPI.Repository;
+using ChangeControlAPI.Services;
+using FluentAssertions;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Xunit;
+
+namespace ChangeControlAPI.Test
+{
+    public class DBAApprovalTests
+    {
+        public DBAApprovalTests()
+        {
+
+        }
+
+        [Fact]
+        public void GetDBAApprovalStatus_Success()
+        {
+            // Arrange
+            var approvalStatuses = new Fixture().CreateMany<DBAApprovalStatus>(5).AsQueryable();
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalStatusRepositoryMock.Setup(x => x.GetAll()).Returns(approvalStatuses);
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var results = service.GetDBAApprovalStatus();
+            // Assert
+            results.Should().NotBeNull();
+            results.Count().Should().Be(approvalStatuses.Count());
+            results.Should().BeSameAs(approvalStatuses);
+        }
+
+        [Fact]
+        public void GetDBAApprovalStatus_Failure()
+        {
+            // Arrange
+            var approvalStatuses = new Fixture().CreateMany<DBAApprovalStatus>(0).AsQueryable();
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalStatusRepositoryMock.Setup(x => x.GetAll()).Returns(approvalStatuses);
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var results = service.GetDBAApprovalStatus();
+            // Assert
+            results.Should().BeNullOrEmpty();
+        }
+
+        [Fact]
+        public void GetApprovalHistory_Success()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+            var approvalHistories = fixture.CreateMany<DBAApprovalHistory>(5).AsQueryable();
+            var ticketId = approvalHistories.Select(x => x.TicketID).First();
+            var expectedResult = approvalHistories.Where(x => x.TicketID == ticketId);
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalHistoryRepositoryMock.Setup(x => x.GetAll()).Returns(approvalHistories);
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var results = service.GetApprovalHistory(ticketId);
+            // Assert
+            results.Should().NotBeNull();
+            results.Count().Should().Be(expectedResult.Count());
+            results.Should().BeEquivalentTo(expectedResult);
+        }
+
+        [Fact]
+        public void GetApprovalHistory_Failure()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+            var approvalHistories = fixture.CreateMany<DBAApprovalHistory>(0).AsQueryable();
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalHistoryRepositoryMock.Setup(x => x.GetAll()).Returns(approvalHistories);
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var results = service.GetApprovalHistory(1);
+            // Assert
+            results.Should().BeNullOrEmpty();
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task AdddBAApprovalHistory_SuccessAsync()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+            var newApproval = fixture.Create<DBAApprovalHistory>();
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalHistoryRepositoryMock.Setup(x => x.CreateAsync(newApproval));
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var result = await service.AdddBAApprovalHistory(newApproval);
+            // Assert
+            result.Should().NotBeNull();
+            result.Should().BeSameAs(newApproval);
+        }
+
+        [Fact]
+        public void AdddBAApprovalHistory_Exception()
+        {
+            // Arrange
+            var fixture = new Fixture();
+            fixture.Behaviors.Add(new OmitOnRecursionBehavior());
+            var newApproval = fixture.Create<DBAApprovalHistory>();
+            var dbaApprovalStatusRepositoryMock = new Mock<IDBAApprovalStatusRepository>();
+            var dbaApprovalHistoryRepositoryMock = new Mock<IDBAApprovalHistoryRepository>();
+            dbaApprovalHistoryRepositoryMock.Setup(x => x.CreateAsync(newApproval));
+            var service = new DBAApprovalService(dbaApprovalStatusRepositoryMock.Object, dbaApprovalHistoryRepositoryMock.Object);
+            // Act
+            var ex = Assert.ThrowsAsync<ArgumentNullException>(() => service.AdddBAApprovalHistory(null));
+            // Assert
+            ex.Should().NotBeNull();
+            ex.Result.Should().NotBeNull();
+            ex.Result.Message.Should().NotBeNull();
+            Assert.Equal(string.Format(Messages.ArgumentNullExceptionMessage, service.GetType().GetMethod("AdddBAApprovalHistory").GetParameters()[0].Name), ex.Result.Message);
+        }
+    }
+}
